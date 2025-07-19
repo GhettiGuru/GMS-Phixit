@@ -6,7 +6,8 @@ env:
 
 on:
   push:
-    branches: development
+    branches:
+      - development
       - 'release/**'
   workflow_dispatch:
 
