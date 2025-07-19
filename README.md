@@ -6,7 +6,7 @@
 ---
 Downloads:
 
- [ɪ ᴡᴀɴᴛ ɪᴛ ɴᴏᴡ ᴏᴍɢ ɢᴇᴛ ᴍᴇ ᴀʟʟ ꜱᴛɪᴄᴋy!](https://github.com/GhettiGuru/GMS-Flags/releases)
+ [ɪ ᴡᴀɴᴛ ɪᴛ ɴᴏᴡ ᴏᴍɢ ɢᴇᴛ ᴍᴇ ᴀʟʟ ꜱᴛɪᴄᴋy!](https://github.com/GhettiGuru/GMS-Phixit/releases)
 
 ## What is GMS Phixit?
 
