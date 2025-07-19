@@ -54,7 +54,7 @@ jobs:
         run: ./gradlew build
 
       - name: Build apk debug project - ${{ env.main_project_module }}
-        run: ./gradlew assembleDebug -PdisableAnalytics=true
+        run: ./gradlew assembleDebug
 
       - name: Build app with analytics disabled
         run: ./gradlew assembleRelease -PdisableAnalytics=true
