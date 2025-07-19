@@ -2,7 +2,7 @@ name: Generated APK AAB (Upload - Create Artifact To Github Action)
 
 env:
   main_project_module: app
-  playstore_name: YourAppName
+  playstore_name: GMSPhixit
 
 on:
   push:
@@ -30,7 +30,7 @@ jobs:
           cache: 'gradle'
 
       - name: Change wrapper permissions
-        run: chmod +x./gradlew
+        run: chmod +x ./gradlew
 
       - name: Run gradle tests
         run: ./gradlew test
