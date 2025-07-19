@@ -32,8 +32,8 @@ jobs:
       - name: double check gradle
         run: gradle wrapper
 
-       - name: Ensure Gradle wrapper is available
-         run: ./gradlew --version
+      - name: Ensure Gradle wrapper is available
+        run: ./gradlew --version
   
 
       - name: Change wrapper permissions
