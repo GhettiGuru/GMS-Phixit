@@ -14,7 +14,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Set environment variables
+        run: echo "DISABLE_ANALYTICS=true" >> $GITHUB_ENV
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build app with analytics disabled
+        run: ./gradlew assembleRelease -PdisableAnalytics=true
+
 
       - name: Set current date as env variable
         run: echo "date_today=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
