@@ -33,19 +33,19 @@ jobs:
         run: chmod +x./gradlew
 
       - name: Run gradle tests
-        run:./gradlew test
+        run: ./gradlew test
 
       - name: Build gradle project
-        run:./gradlew build
+        run: ./gradlew build
 
       - name: Build apk debug project - ${{ env.main_project_module }}
-        run:./gradlew assembleDebug
+        run: ./gradlew assembleDebug
 
       - name: Build apk release project - ${{ env.main_project_module }}
-        run:./gradlew assemble
+        run: ./gradlew assemble
 
       - name: Build app bundle release (AAB) - ${{ env.main_project_module }}
-        run:./gradlew ${{ env.main_project_module }}:bundleRelease
+        run: ./gradlew ${{ env.main_project_module }}:bundleRelease
 
       - name: Upload APK Debug
         uses: actions/upload-artifact@v4
