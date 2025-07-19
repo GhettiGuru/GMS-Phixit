@@ -20,10 +20,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build app with analytics disabled
-        run: ./gradlew assembleRelease -PdisableAnalytics=true
-
-
       - name: Set current date as env variable
         run: echo "date_today=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
@@ -54,10 +50,10 @@ jobs:
         run: ./gradlew build
 
       - name: Build apk debug project - ${{ env.main_project_module }}
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug -PdisableAnalytics=true
 
-      - name: Build apk release project - ${{ env.main_project_module }}
-        run: ./gradlew assemble
+      - name: Build app with analytics disabled
+        run: ./gradlew assembleRelease -PdisableAnalytics=true
 
       - name: Build app bundle release (AAB) - ${{ env.main_project_module }}
         run: ./gradlew ${{ env.main_project_module }}:bundleRelease
