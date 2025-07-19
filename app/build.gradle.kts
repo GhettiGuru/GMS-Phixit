@@ -20,7 +20,7 @@ val keystorePropertiesFile = rootProject.file("keystore.properties")
 val requiresSigning = keystorePropertiesFile.exists()
 
 android {
-    namespace = "ua.resinous.gmsphixit"
+    namespace = "ua.polodarb.gmsphixit"
     compileSdk = 36
 
     signingConfigs {
@@ -38,7 +38,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "ua.resinous.gmsphixit"
+        applicationId = "ua.polodarb.gmsphixit"
         minSdk = 29
         targetSdk = 36
         versionCode = 1
