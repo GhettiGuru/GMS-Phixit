@@ -38,7 +38,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "ua.polodarb.gmsphixit"
+        applicationId = "ua.resinous.gmsphixit"
         minSdk = 29
         targetSdk = 36
         versionCode = 1
