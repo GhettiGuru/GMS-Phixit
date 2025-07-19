@@ -2,12 +2,11 @@ name: Generated APK AAB (Upload - Create Artifact To Github Action)
 
 env:
   main_project_module: app
-  playstore_name: GMSPhixit
+  playstore_name: YourAppName
 
 on:
   push:
     branches:
-      - development
       - 'release/**'
   workflow_dispatch:
 
