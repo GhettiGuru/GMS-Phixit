@@ -4,6 +4,9 @@
 > **⚠️ NOTE: This app was built from scratch in just 12 hours. The codebase is a quick-and-dirty solution and is NOT a reference for clean architecture or best practices. Use at your own risk and do not use this project as an example of production-quality code!**
 
 ---
+Downloads:
+
+ [ɪ ᴡᴀɴᴛ ɪᴛ ɴᴏᴡ ᴏᴍɢ ɢᴇᴛ ᴍᴇ ᴀʟʟ ꜱᴛɪᴄᴋy!](https://github.com/GhettiGuru/GMS-Flags/releases)
 
 ## What is GMS Phixit?
 
