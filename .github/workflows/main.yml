@@ -40,12 +40,12 @@ jobs:
             gradle-${{ runner.os }}-
             gradle-
 
-      - name: Make Gradle wrapper executable
-        run: chmod +x gradlew
-
       - name: Run gradle wrapper
         run: ./gradlew wrapper
 
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+        
       - name: Setup Android SDK cmdline tools
         run: |
           sudo mkdir -p /usr/local/android-sdk/cmdline-tools
