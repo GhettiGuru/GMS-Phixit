@@ -121,21 +121,6 @@ jobs:
             "$SIGNED_APK_PATH"
 
           mv "$SIGNED_APK_PATH" ${{ env.main_project_module }}/build/outputs/apk/release/${{ env.playstore_name }}-release.apk
-
-      - name: Sign and Rename Release AAB
-        run: |
-          RELEASE_AAB_PATH=$(find ${{ env.main_project_module }}/build/outputs/bundle/release -name "*-release.aab" -print -quit)
-          $HOME/android-sdk/build-tools/33.0.2/apksigner sign \
-          --ks ${{ github.workspace }}/keystore.jks \
-          --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
-          --key-pass pass:${{ secrets.KEYSTORE_PASS }} \
-          --v1-signing-enabled true \
-          --v2-signing-enabled false \
-          --v3-signing-enabled true \
-          --v4-signing-enabled false \
-          "$RELEASE_AAB_PATH"
-          
-          mv "$RELEASE_AAB_PATH" ${{ env.main_project_module }}/build/outputs/bundle/release/${{ env.playstore_name }}-release.aab
       
       - name: Upload APK Debug
         uses: actions/upload-artifact@v4
@@ -153,4 +138,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - AAB Release
-          path: ${{ env.main_project_module }}/build/outputs/bundle/release/${{ env.playstore_name }}-release.aab
+          path: ${{ env.main_project_module }}/build/outputs/bundle/release/${{ env.main_project_module }}-release.aab
