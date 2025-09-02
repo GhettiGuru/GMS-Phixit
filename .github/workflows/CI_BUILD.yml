@@ -1,4 +1,4 @@
-name: CI Build
+name: APK & AAB CI Build
 env:
   main_project_module: app
   playstore_name: GMSPhixit
@@ -79,10 +79,16 @@ jobs:
       - name: Build APKs and AAB
         run: ./gradlew assembleDebug assembleRelease bundleRelease
 
-      - name: Sign and Rename Debug APK
+      - name: Zipalign and Sign Debug APK
         run: |
           chmod -R 0755 $HOME/android-sdk
           DEBUG_APK_PATH=$(find ${{ env.main_project_module }}/build/outputs/apk/debug -name "*-debug.apk" -print -quit)
+          SIGNED_APK_PATH="${{ env.main_project_module }}/build/outputs/apk/debug/signed-${{ env.playstore_name }}-debug.apk"
+
+          $HOME/android-sdk/build-tools/33.0.2/zipalign -v -p 4 \
+            "$DEBUG_APK_PATH" \
+            "$SIGNED_APK_PATH"
+
           $HOME/android-sdk/build-tools/33.0.2/apksigner sign \
             --ks ${{ github.workspace }}/keystore.jks \
             --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
@@ -91,15 +97,16 @@ jobs:
             --v2-signing-enabled false \
             --v3-signing-enabled true \
             --v4-signing-enabled false \
-            "$DEBUG_APK_PATH"
-          cp "$DEBUG_APK_PATH" ${{ env.main_project_module }}/build/outputs/apk/debug/${{ env.playstore_name }}-debug.apk
+            "$SIGNED_APK_PATH"
+
+          mv "$SIGNED_APK_PATH" ${{ env.main_project_module }}/build/outputs/apk/debug/${{ env.playstore_name }}-debug.apk
 
       - name: Zipalign and Sign Release APK
         run: |
           RELEASE_APK_PATH=$(find ${{ env.main_project_module }}/build/outputs/apk/release -name "*-release.apk" -print -quit)
           SIGNED_APK_PATH="${{ env.main_project_module }}/build/outputs/apk/release/signed-${{ env.playstore_name }}-release.apk"
 
-          zipalign -v -p 4 \
+          $HOME/android-sdk/build-tools/33.0.2/zipalign -v -p 4 \
             "$RELEASE_APK_PATH" \
             "$SIGNED_APK_PATH"
 
