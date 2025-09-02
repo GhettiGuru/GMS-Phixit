@@ -122,29 +122,6 @@ jobs:
             "$release_apk"
           $HOME/android-sdk/build-tools/33.0.2/zipalign -v -p 4 "$release_apk" "${{ github.workspace }}/app/build/outputs/apk/release/GMS-Phixit-Release.apk"
 
-      # Sign AAB
-      - name: Sign Release AAB
-        run: |
-          aab_file="${{ github.workspace }}/app/build/outputs/bundle/release/app-release.aab"
-          echo "Signing $aab_file"
-          $HOME/android-sdk/build-tools/33.0.2/apksigner sign \
-            --ks ${{ github.workspace }}/keystore.jks \
-            --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
-            --key-pass pass:${{ secrets.KEYSTORE_PASS }} \
-            --v1-signing-enabled true \
-            --v2-signing-enabled false \
-            --v3-signing-enabled true \
-            --v4-signing-enabled false \
-            "$aab_file"
-          mv "$aab_file" "${{ github.workspace }}/app/build/outputs/bundle/release/GMS-Phixit-Release.aab"
-
-      # Upload artifacts
-      - name: Upload Signed APK Debug
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - APK Debug
-          path: ${{ github.workspace }}/app/build/outputs/apk/debug/GMS-Phixit-Debug.apk
-
       - name: Upload Signed APK Release
         uses: actions/upload-artifact@v4
         with:
@@ -155,4 +132,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - AAB Release
-          path: ${{ github.workspace }}/app/build/outputs/bundle/release/GMS-Phixit-Release.aab
+          path: ${{ github.workspace }}/app/build/outputs/bundle/release/app-release.aab
