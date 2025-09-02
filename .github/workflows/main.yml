@@ -40,25 +40,25 @@ jobs:
             gradle-${{ runner.os }}-
             gradle-
 
-      - name: Run gradle wrapper
+      - name: Generate Gradle Wrapper
         run: gradle wrapper
 
-      - name: Make Gradle wrapper executable
-        run: chmod +x gradlew
-        
-      - name: Setup Android SDK cmdline tools
+      - name: Make Gradle Wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Setup Android SDK cmdline tools in home directory
         run: |
-          sudo mkdir -p /usr/local/android-sdk/cmdline-tools
+          mkdir -p $HOME/android-sdk/cmdline-tools
           curl -o commandlinetools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip -q commandlinetools.zip -d /usr/local/android-sdk/cmdline-tools
-          mv /usr/local/android-sdk/cmdline-tools/cmdline-tools /usr/local/android-sdk/cmdline-tools/latest
-          yes | /usr/local/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=/usr/local/android-sdk --licenses
-          /usr/local/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=/usr/local/android-sdk "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+          unzip -q commandlinetools.zip -d $HOME/android-sdk/cmdline-tools
+          mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses
+          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
       - name: Set Android SDK env variables
         run: |
-          echo "ANDROID_SDK_ROOT=/usr/local/android-sdk" >> $GITHUB_ENV
-          echo "PATH=/usr/local/android-sdk/platform-tools:/usr/local/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
 
       - name: Decode signing keystore file
         run: echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > ./keystore.jks
@@ -107,7 +107,6 @@ jobs:
       - name: Verify Signed AAB
         run: apksigner verify --verbose ${{ env.main_project_module }}/build/outputs/bundle/release/app-release.aab
 
-      # Upload artifacts
       - name: Upload APK Debug
         uses: actions/upload-artifact@v4
         with:
