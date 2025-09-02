@@ -1,4 +1,4 @@
-name: APK & AAB CI Build
+name: CI Build
 env:
   main_project_module: app
   playstore_name: GMSPhixit
