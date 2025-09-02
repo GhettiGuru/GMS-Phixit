@@ -62,8 +62,8 @@ jobs:
         run: |
          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
          echo "PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
-         unset ANDROID_SDK_ROOT
-         
+         echo "ANDROID_SDK_ROOT=" >> $GITHUB_ENV
+    
       - name: Decode signing keystore file
         run: echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > ./keystore.jks
 
