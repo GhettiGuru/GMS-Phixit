@@ -51,6 +51,17 @@ jobs:
       - name: Ensure Gradle wrapper exists
         run: gradle wrapper
 
+      - name: Set up Gradle cache
+        uses: actions/cache@v3
+        with:
+          path: |
+           ~/.gradle/caches
+           ~/.gradle/wrapper/
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/gradle-wrapper.properties', '**/build.gradle*') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+            
+
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
