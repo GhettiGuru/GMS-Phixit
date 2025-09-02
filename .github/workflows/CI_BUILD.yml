@@ -1,0 +1,157 @@
+name: APK & AAB CI Build
+env:
+  main_project_module: app
+  playstore_name: GMSPhixit
+
+on:
+  push:
+    branches:
+      - 'release/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set environment variables
+        run: echo "DISABLE_ANALYTICS=true" >> $GITHUB_ENV
+
+      - name: Set current date as env variable
+        run: echo "date_today=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+
+      - name: Set repository name as env variable
+        run: echo "repository_name=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}')" >> $GITHUB_ENV
+
+      - name: Decode google-services.json from secret
+        run: |
+          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > ${{ env.main_project_module }}/google-services.json
+
+      - name: Setup Gradle Cache (dependencies and wrapper)
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper/
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+            gradle-
+
+      - name: Generate Gradle Wrapper if missing
+        run: |
+          if [ ! -f ./gradlew ]; then
+            gradle wrapper
+          fi
+
+      - name: Make Gradle Wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Setup Android SDK cmdline tools in home directory
+        run: |
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          curl -o commandlinetools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools.zip -d $HOME/android-sdk/cmdline-tools
+          mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses
+          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+
+      - name: Set Android SDK env variables
+        run: |
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
+
+      - name: Unset ANDROID_SDK_ROOT
+        run: |
+          unset ANDROID_SDK_ROOT
+
+      - name: Decode signing keystore file
+        run: echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > ./keystore.jks
+
+      - name: Set signing environment variables
+        run: |
+          echo "SIGNING_KEY=$(pwd)/keystore.jks" >> $GITHUB_ENV
+          echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+          echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
+          echo "KEYSTORE_PASS=${{ secrets.KEYSTORE_PASS }}" >> $GITHUB_ENV
+
+      - name: Build project
+        run: ./gradlew build -Dsdk.dir=$ANDROID_HOME
+
+      - name: Build APK Debug
+        run: ./gradlew assembleDebug -Dsdk.dir=$ANDROID_HOME
+
+      - name: Build APK Release
+        run: ./gradlew assembleRelease -Dsdk.dir=$ANDROID_HOME
+
+      - name: Build AAB Release
+        run: ./gradlew ${{ env.main_project_module }}:bundleRelease -Dsdk.dir=$ANDROID_HOME
+
+      - name: Sign Debug APK 
+        run: |
+          chmod -R 0755 $HOME/android-sdk
+          $HOME/android-sdk/build-tools/33.0.2/apksigner sign \
+          --ks ${{ github.workspace }}/keystore.jks \
+          --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
+          --key-pass pass:${{ secrets.KEYSTORE_PASS }} \
+          --v1-signing-enabled true \
+          --v2-signing-enabled false \
+          --v3-signing-enabled true \
+          --v4-signing-enabled false \
+          ${{ github.workspace }}/${{ env.main_project_module }}/build/outputs/apk/debug/app-debug.apk
+
+      - name: Sign Release APK
+        run: |
+          $HOME/android-sdk/build-tools/33.0.2/apksigner sign \
+          --ks ${{ github.workspace }}/keystore.jks \
+          --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
+          --key-pass pass:${{ secrets.KEYSTORE_PASS }} \
+          --v1-signing-enabled true \
+          --v2-signing-enabled false \
+          --v3-signing-enabled true \
+          --v4-signing-enabled false \
+          ${{ github.workspace }}/${{ env.main_project_module }}/build/outputs/apk/release/app-release-unsigned.apk
+
+      - name: Zipalign Signed Release APK
+        run: |
+          zipalign -v -p 4 \
+            ${{ env.main_project_module }}/build/outputs/apk/release/app-release-unsigned.apk \
+            ${{ env.main_project_module }}/build/outputs/apk/release/app-release.apk
+
+      - name: Verify Signed Release APK
+        run: $HOME/android-sdk/build-tools/33.0.2/apksigner verify --verbose ${{ github.workspace }}/${{ env.main_project_module }}/build/outputs/apk/release/app-release.apk
+
+      - name: Sign Release AAB with v1 and v3 only
+        run: |
+          $HOME/android-sdk/build-tools/33.0.2/apksigner sign \
+          --ks ${{ github.workspace }}/keystore.jks \
+          --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
+          --key-pass pass:${{ secrets.KEYSTORE_PASS }} \
+          --v1-signing-enabled true \
+          --v2-signing-enabled false \
+          --v3-signing-enabled true \
+          --v4-signing-enabled false \
+          ${{ github.workspace }}/${{ env.main_project_module }}/build/outputs/bundle/release/app-release.aab
+
+      - name: Verify Signed Release AAB
+        run: $HOME/android-sdk/build-tools/33.0.2/apksigner verify --verbose ${{ github.workspace }}/${{ env.main_project_module }}/build/outputs/bundle/release/app-release.aab
+
+      - name: Upload APK Debug
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - APK Debug
+          path: ${{ env.main_project_module }}/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload Signed APK Release
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - APK Release
+          path: ${{ env.main_project_module }}/build/outputs/apk/release/app-release.apk
+
+      - name: Upload Signed AAB Release
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - AAB Release
+          path: ${{ env.main_project_module }}/build/outputs/bundle/release/app-release.aab
