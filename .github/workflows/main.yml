@@ -1,4 +1,4 @@
-name: Build APK/AAB with Signing
+name: Build APK and AAB CI Build
 
 on:
   push:
