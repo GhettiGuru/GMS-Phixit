@@ -29,7 +29,8 @@ jobs:
         run: |
           echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > ${{ env.main_project_module }}/google-services.json
 
-      - name: Setup Gradle Cache (dependencies and wrapper)
+      # Cache Gradle
+      - name: Cache Gradle
         uses: actions/cache@v3
         with:
           path: |
@@ -49,7 +50,7 @@ jobs:
       - name: Make Gradle Wrapper executable
         run: chmod +x ./gradlew
 
-      - name: Setup Android SDK cmdline tools in home directory
+      - name: Setup Android SDK cmdline tools
         run: |
           mkdir -p $HOME/android-sdk/cmdline-tools
           curl -o commandlinetools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
@@ -57,13 +58,13 @@ jobs:
           mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
           yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses
           $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk "platform-tools" "platforms;android-33" "build-tools;33.0.2"
-          
+
       - name: Set Android SDK env variables
         run: |
-         echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-         echo "PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
-         echo "ANDROID_SDK_ROOT=" >> $GITHUB_ENV
-    
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
+          unset ANDROID_SDK_ROOT
+
       - name: Decode signing keystore file
         run: echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > ./keystore.jks
 
@@ -74,6 +75,7 @@ jobs:
           echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
           echo "KEYSTORE_PASS=${{ secrets.KEYSTORE_PASS }}" >> $GITHUB_ENV
 
+      # Build APK and AAB
       - name: Build project
         run: ./gradlew build
 
@@ -86,69 +88,69 @@ jobs:
       - name: Build AAB Release
         run: ./gradlew ${{ env.main_project_module }}:bundleRelease
 
+      # Sign Debug APK
       - name: Sign Debug APK
         run: |
-          chmod -R 0755 $HOME/android-sdk
+          debug_apk=$(find ${{ github.workspace }}/app/build/outputs/apk/debug -name "*.apk" | head -n 1)
+          echo "Signing $debug_apk"
           $HOME/android-sdk/build-tools/33.0.2/apksigner sign \
-          --ks ${{ github.workspace }}/keystore.jks \
-          --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
-          --key-pass pass:${{ secrets.KEYSTORE_PASS }} \
-          --v1-signing-enabled true \
-          --v2-signing-enabled false \
-          --v3-signing-enabled true \
-          --v4-signing-enabled false \
-          ${{ github.workspace }}/${{ env.main_project_module }}/build/outputs/apk/debug/app-debug.apk
+            --ks ${{ github.workspace }}/keystore.jks \
+            --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
+            --key-pass pass:${{ secrets.KEYSTORE_PASS }} \
+            --v1-signing-enabled true \
+            --v2-signing-enabled false \
+            --v3-signing-enabled true \
+            --v4-signing-enabled false \
+            "$debug_apk"
+          mv "$debug_apk" "${{ github.workspace }}/app/build/outputs/apk/debug/GMS-Phixit-Debug.apk"
 
+      # Sign Release APK
       - name: Sign Release APK
         run: |
+          release_apk=$(find ${{ github.workspace }}/app/build/outputs/apk/release -name "*-unsigned.apk" | head -n 1)
+          echo "Signing $release_apk"
           $HOME/android-sdk/build-tools/33.0.2/apksigner sign \
-          --ks ${{ github.workspace }}/keystore.jks \
-          --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
-          --key-pass pass:${{ secrets.KEYSTORE_PASS }} \
-          --v1-signing-enabled true \
-          --v2-signing-enabled false \
-          --v3-signing-enabled true \
-          --v4-signing-enabled false \
-          ${{ github.workspace }}/${{ env.main_project_module }}/build/outputs/apk/release/app-release-unsigned.apk
+            --ks ${{ github.workspace }}/keystore.jks \
+            --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
+            --key-pass pass:${{ secrets.KEYSTORE_PASS }} \
+            --v1-signing-enabled true \
+            --v2-signing-enabled false \
+            --v3-signing-enabled true \
+            --v4-signing-enabled false \
+            "$release_apk"
+          zipalign -v -p 4 "$release_apk" "${{ github.workspace }}/app/build/outputs/apk/release/GMS-Phixit-Release.apk"
 
-      - name: Zipalign Signed Release APK
+      # Sign Release AAB
+      - name: Sign Release AAB
         run: |
-          zipalign -v -p 4 \
-            ${{ env.main_project_module }}/build/outputs/apk/release/app-release-unsigned.apk \
-            ${{ env.main_project_module }}/build/outputs/apk/release/app-release.apk
-
-      - name: Verify Signed Release APK
-        run: $HOME/android-sdk/build-tools/33.0.2/apksigner verify --verbose ${{ github.workspace }}/${{ env.main_project_module }}/build/outputs/apk/release/app-release.apk
-
-      - name: Sign Release AAB with v1 and v3 only
-        run: |
+          aab_file=$(find ${{ github.workspace }}/app/build/outputs/bundle/release -name "*.aab" | head -n 1)
+          echo "Signing $aab_file"
           $HOME/android-sdk/build-tools/33.0.2/apksigner sign \
-          --ks ${{ github.workspace }}/keystore.jks \
-          --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
-          --key-pass pass:${{ secrets.KEYSTORE_PASS }} \
-          --v1-signing-enabled true \
-          --v2-signing-enabled false \
-          --v3-signing-enabled true \
-          --v4-signing-enabled false \
-          ${{ github.workspace }}/${{ env.main_project_module }}/build/outputs/bundle/release/app-release.aab
+            --ks ${{ github.workspace }}/keystore.jks \
+            --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
+            --key-pass pass:${{ secrets.KEYSTORE_PASS }} \
+            --v1-signing-enabled true \
+            --v2-signing-enabled false \
+            --v3-signing-enabled true \
+            --v4-signing-enabled false \
+            "$aab_file"
+          mv "$aab_file" "${{ github.workspace }}/app/build/outputs/bundle/release/GMS-Phixit-Release.aab"
 
-      - name: Verify Signed Release AAB
-        run: $HOME/android-sdk/build-tools/33.0.2/apksigner verify --verbose ${{ github.workspace }}/${{ env.main_project_module }}/build/outputs/bundle/release/app-release.aab
-
-      - name: Upload APK Debug
+      # Upload artifacts
+      - name: Upload signed APK Debug
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - APK Debug
-          path: ${{ env.main_project_module }}/build/outputs/apk/debug/app-debug.apk
+          name: ${{ env.date_today }}-GMS-Phixit-Debug.apk
+          path: ${{ github.workspace }}/app/build/outputs/apk/debug/GMS-Phixit-Debug.apk
 
-      - name: Upload Signed APK Release
+      - name: Upload signed APK Release
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - APK Release
-          path: ${{ env.main_project_module }}/build/outputs/apk/release/app-release.apk
+          name: ${{ env.date_today }}-GMS-Phixit-Release.apk
+          path: ${{ github.workspace }}/app/build/outputs/apk/release/GMS-Phixit-Release.apk
 
-      - name: Upload Signed AAB Release
+      - name: Upload signed AAB Release
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - AAB Release
-          path: ${{ env.main_project_module }}/build/outputs/bundle/release/app-release.aab
+          name: ${{ env.date_today }}-GMS-Phixit-Release.aab
+          path: ${{ github.workspace }}/app/build/outputs/bundle/release/GMS-Phixit-Release.aab
