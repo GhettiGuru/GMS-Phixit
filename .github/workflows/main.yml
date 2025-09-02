@@ -1,56 +1,84 @@
-name: Android APK Build
+name: Build APK/AAB with Signing
 
 on:
+  push:
+    branches:
+      - 'release/**'
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      main_project_module: app
+      playstore_name: GMSPhixit
+
     steps:
-      # Checkout code
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      # Setup JDK
+      - name: Set environment variables
+        run: |
+          echo "DISABLE_ANALYTICS=true" >> $GITHUB_ENV
+          echo "date_today=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+          echo "repository_name=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}')" >> $GITHUB_ENV
+
+      - name: Decode google-services.json from secret
+        run: |
+          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > ${{ env.main_project_module }}/google-services.json
+
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: 17
-          cache: gradle
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
 
-      # Cache Gradle
-      - name: Cache Gradle
-        uses: actions/cache@v4
+      # regenerate wrapper first
+      - name: Ensure Gradle wrapper exists
+        run: gradle wrapper
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v3
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+          key: gradle-${{ hashFiles('**/gradle-wrapper.properties') }}
+          restore-keys: gradle-
 
-      # Decode keystore from secret
-      - name: Decode Keystore
-        run: |
-          echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > keystore.jks
+      - name: Build app
+        run: ./gradlew clean build \
+              -PdisableAnalytics=true \
+              -x test
 
-      # Make Gradle wrapper executable
-      - name: Make Gradle wrapper executable
-        run: chmod +x gradlew
+      - name: Build APK Debug
+        run: ./gradlew assembleDebug -x test
 
-      # Build release APK
-      - name: Build Release APK
-        run: ./gradlew assembleRelease \
-          -Pandroid.injected.signing.store.file=keystore.jks \
-          -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASS }} \
-          -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
-          -Pandroid.injected.signing.key.password=${{ secrets.KEYSTORE_PASSWORD }}
+      - name: Build APK Release
+        run: ./gradlew assembleRelease -x test
 
-      # Upload artifact
-      - name: Upload APK
+      - name: Build AAB Release
+        run: ./gradlew ${{ env.main_project_module }}:bundleRelease -x test
+
+      - name: Upload APK Debug
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk
-          path: app/build/outputs/apk/release/*.apk
+          name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - APK Debug
+          path: ${{ env.main_project_module }}/build/outputs/apk/debug/
+
+      - name: Upload APK Release
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - APK Release
+          path: ${{ env.main_project_module }}/build/outputs/apk/release/
+
+      - name: Upload AAB Release
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - AAB Release
+          path: ${{ env.main_project_module }}/build/outputs/bundle/release/
