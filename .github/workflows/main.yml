@@ -85,7 +85,7 @@ jobs:
       - name: Build AAB Release
         run: ./gradlew ${{ env.main_project_module }}:bundleRelease
 
-      # Sign Debug APK with v1 and v3 signatures only
+      # Sign Debug APK with v1 and v3 only
       - name: Sign Debug APK
         run: |
           apksigner sign \
@@ -98,7 +98,6 @@ jobs:
             --v4-signing-enabled false \
             ${{ env.main_project_module }}/build/outputs/apk/debug/app-debug.apk
 
-      # Sign Release APK with v1 and v3 only
       - name: Sign Release APK
         run: |
           apksigner sign \
@@ -121,7 +120,7 @@ jobs:
         run: apksigner verify --verbose ${{ env.main_project_module }}/build/outputs/apk/release/app-release.apk
 
       # Sign Release AAB with v1 and v3 only
-      - name: Sign AAB
+      - name: Sign Release AAB
         run: |
           apksigner sign \
             --ks ./keystore.jks \
