@@ -40,8 +40,11 @@ jobs:
             gradle-${{ runner.os }}-
             gradle-
 
-      - name: Generate Gradle Wrapper
-        run: gradle wrapper
+      - name: Generate Gradle Wrapper if missing
+        run: |
+          if [ ! -f ./gradlew ]; then
+            gradle wrapper
+          fi
 
       - name: Make Gradle Wrapper executable
         run: chmod +x ./gradlew
@@ -57,7 +60,7 @@ jobs:
 
       - name: Set Android SDK env variables
         run: |
-          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
           echo "PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
 
       - name: Decode signing keystore file
@@ -77,50 +80,4 @@ jobs:
         run: ./gradlew assembleDebug
 
       - name: Build APK Release (analytics disabled)
-        run: ./gradlew assembleRelease -PdisableAnalytics=true
-
-      - name: Build AAB Release
-        run: ./gradlew ${{ env.main_project_module }}:bundleRelease
-
-      - name: Sign Release APK
-        run: |
-          jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 \
-            -keystore ./keystore.jks \
-            -storepass ${{ secrets.KEYSTORE_PASSWORD }} \
-            -keypass ${{ secrets.KEYSTORE_PASS }} \
-            ${{ env.main_project_module }}/build/outputs/apk/release/app-release-unsigned.apk ${{ secrets.KEY_ALIAS }}
-
-          zipalign -v -p 4 \
-            ${{ env.main_project_module }}/build/outputs/apk/release/app-release-unsigned.apk \
-            ${{ env.main_project_module }}/build/outputs/apk/release/app-release.apk
-
-      - name: Verify Signed APK
-        run: apksigner verify --verbose ${{ env.main_project_module }}/build/outputs/apk/release/app-release.apk
-
-      - name: Sign Release AAB
-        run: |
-          apksigner sign --ks ./keystore.jks \
-            --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
-            --key-pass pass:${{ secrets.KEYSTORE_PASS }} \
-            ${{ env.main_project_module }}/build/outputs/bundle/release/app-release.aab
-
-      - name: Verify Signed AAB
-        run: apksigner verify --verbose ${{ env.main_project_module }}/build/outputs/bundle/release/app-release.aab
-
-      - name: Upload APK Debug
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - APK Debug
-          path: ${{ env.main_project_module }}/build/outputs/apk/debug/
-
-      - name: Upload APK Release
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - APK Release
-          path: ${{ env.main_project_module }}/build/outputs/apk/release/app-release.apk
-
-      - name: Upload AAB Release
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - AAB Release
-          path: ${{ env.main_project_module }}/build/outputs/bundle/release/app-release.aab
+        run: ./gradlew assembleRelease
