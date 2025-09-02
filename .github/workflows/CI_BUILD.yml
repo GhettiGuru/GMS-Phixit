@@ -1,4 +1,4 @@
-name: APK & AAB CI Build
+name: CI Build
 env:
   main_project_module: app
   playstore_name: GMSPhixit
@@ -62,10 +62,9 @@ jobs:
         run: |
           echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
           echo "PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
-
-      - name: Unset ANDROID_SDK_ROOT
-        run: |
-          unset ANDROID_SDK_ROOT
+          
+      - name: Set SDK directory in local.properties
+        run: echo "sdk.dir=$HOME/android-sdk" > local.properties
 
       - name: Decode signing keystore file
         run: echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > ./keystore.jks
@@ -78,16 +77,16 @@ jobs:
           echo "KEYSTORE_PASS=${{ secrets.KEYSTORE_PASS }}" >> $GITHUB_ENV
 
       - name: Build project
-        run: ./gradlew build -Dsdk.dir=$ANDROID_HOME
+        run: ./gradlew build
 
       - name: Build APK Debug
-        run: ./gradlew assembleDebug -Dsdk.dir=$ANDROID_HOME
+        run: ./gradlew assembleDebug
 
       - name: Build APK Release
-        run: ./gradlew assembleRelease -Dsdk.dir=$ANDROID_HOME
+        run: ./gradlew assembleRelease
 
       - name: Build AAB Release
-        run: ./gradlew ${{ env.main_project_module }}:bundleRelease -Dsdk.dir=$ANDROID_HOME
+        run: ./gradlew ${{ env.main_project_module }}:bundleRelease
 
       - name: Sign Debug APK 
         run: |
