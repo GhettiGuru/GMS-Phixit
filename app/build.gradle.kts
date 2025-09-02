@@ -1,4 +1,5 @@
 import java.io.File
+import java.util.Properties
 
 plugins {
     id("com.android.application")
@@ -17,14 +18,22 @@ android {
         versionName = "1.0"
     }
 
+    // Signing config only if all necessary secrets exist
+    val signingKeyPath = System.getenv("SIGNING_KEY_PATH")
+    val signingKeyStorePassword = System.getenv("KEYSTORE_PASS")
+    val signingKeyAlias = System.getenv("KEY_ALIAS")
+    val signingKeyPassword = System.getenv("KEYSTORE_PASSWORD")
+
+    val hasSigning = listOf(signingKeyPath, signingKeyStorePassword, signingKeyAlias, signingKeyPassword)
+        .all { !it.isNullOrBlank() }
+
     signingConfigs {
-        // Create release signing config only if environment variables exist
-        if (System.getenv("SIGNING_KEY_PATH") != null) {
+        if (hasSigning) {
             create("release") {
-                storeFile = File(System.getenv("SIGNING_KEY_PATH"))
-                storePassword = System.getenv("SIGNING_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("SIGNING_KEY_ALIAS")
-                keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+                storeFile = File(signingKeyPath!!)
+                storePassword = signingKeyStorePassword!!
+                keyAlias = signingKeyAlias!!
+                keyPassword = signingKeyPassword!!
             }
         }
     }
@@ -34,9 +43,12 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
 
-            if (signingConfigs.findByName("release") != null) {
+            if (hasSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
+        }
+        getByName("debug") {
+            isDebuggable = true
         }
     }
 
