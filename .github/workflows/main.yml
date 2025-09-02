@@ -57,16 +57,13 @@ jobs:
           mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
           yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses
           $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk "platform-tools" "platforms;android-33" "build-tools;33.0.2"
-
+          
       - name: Set Android SDK env variables
         run: |
-          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
-
-      - name: Unset ANDROID_SDK_ROOT
-        run: |
-          unset ANDROID_SDK_ROOT
-
+         echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+         echo "PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
+         unset ANDROID_SDK_ROOT
+         
       - name: Decode signing keystore file
         run: echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > ./keystore.jks
 
