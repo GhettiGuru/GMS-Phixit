@@ -54,6 +54,17 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
+      - name: Decode signing keystore file
+        run: echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > ./keystore.jks
+      - name: Set SIGNING_KEY env variable
+        run: echo "SIGNING_KEY=$(pwd)/keystore.jks" >> $GITHUB_ENV
+      
+      - name: Set signing environment variables
+        run: |
+          echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+          echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
+          echo "KEYSTORE_PASS=${{ secrets.KEYSTORE_PASS }}" >> $GITHUB_ENV
+          
       - name: Build project
         run: ./gradlew build
 
