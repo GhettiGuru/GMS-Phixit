@@ -1,4 +1,4 @@
-name: APK & AAB CI Build
+name: APK Debug and AAB Build
 env:
   main_project_module: app
   playstore_name: GMSPhixit
@@ -29,8 +29,7 @@ jobs:
         run: |
           echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > ${{ env.main_project_module }}/google-services.json
 
-      # Cache Gradle
-      - name: Setup Gradle Cache
+      - name: Setup Gradle Cache (dependencies and wrapper)
         uses: actions/cache@v3
         with:
           path: |
@@ -76,25 +75,20 @@ jobs:
           echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
           echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
           echo "KEYSTORE_PASS=${{ secrets.KEYSTORE_PASS }}" >> $GITHUB_ENV
+      
+      - name: Build APKs and AAB
+        run: ./gradlew assembleDebug assembleRelease bundleRelease
 
-      # Build project
-      - name: Build project
-        run: ./gradlew build
-
-      - name: Build APK Debug
-        run: ./gradlew assembleDebug
-
-      - name: Build APK Release
-        run: ./gradlew assembleRelease -PdisableAnalytics=true
-
-      - name: Build AAB Release
-        run: ./gradlew ${{ env.main_project_module }}:bundleRelease
-
-      # Sign & zipalign Debug APK
-      - name: Sign & Zipalign Debug APK
+      - name: Zipalign and Sign Debug APK
         run: |
-          debug_apk="${{ github.workspace }}/app/build/outputs/apk/debug/app-debug.apk"
-          echo "Signing $debug_apk"
+          chmod -R 0755 $HOME/android-sdk
+          DEBUG_APK_PATH=$(find ${{ env.main_project_module }}/build/outputs/apk/debug -name "*-debug.apk" -print -quit)
+          SIGNED_APK_PATH="${{ env.main_project_module }}/build/outputs/apk/debug/signed-${{ env.playstore_name }}-debug.apk"
+
+          $HOME/android-sdk/build-tools/33.0.2/zipalign -v -p 4 \
+            "$DEBUG_APK_PATH" \
+            "$SIGNED_APK_PATH"
+
           $HOME/android-sdk/build-tools/33.0.2/apksigner sign \
             --ks ${{ github.workspace }}/keystore.jks \
             --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
@@ -103,14 +97,19 @@ jobs:
             --v2-signing-enabled false \
             --v3-signing-enabled true \
             --v4-signing-enabled false \
-            "$debug_apk"
-          $HOME/android-sdk/build-tools/33.0.2/zipalign -v -p 4 "$debug_apk" "${{ github.workspace }}/app/build/outputs/apk/debug/GMS-Phixit-Debug.apk"
+            "$SIGNED_APK_PATH"
 
-      # Sign & zipalign Release APK
-      - name: Sign & Zipalign Release APK
+          mv "$SIGNED_APK_PATH" ${{ env.main_project_module }}/build/outputs/apk/debug/${{ env.playstore_name }}-debug.apk
+
+      - name: Zipalign and Sign Release APK
         run: |
-          release_apk="${{ github.workspace }}/app/build/outputs/apk/release/app-release.apk"
-          echo "Signing $release_apk"
+          RELEASE_APK_PATH=$(find ${{ env.main_project_module }}/build/outputs/apk/release -name "*-release.apk" -print -quit)
+          SIGNED_APK_PATH="${{ env.main_project_module }}/build/outputs/apk/release/signed-${{ env.playstore_name }}-release.apk"
+
+          $HOME/android-sdk/build-tools/33.0.2/zipalign -v -p 4 \
+            "$RELEASE_APK_PATH" \
+            "$SIGNED_APK_PATH"
+
           $HOME/android-sdk/build-tools/33.0.2/apksigner sign \
             --ks ${{ github.workspace }}/keystore.jks \
             --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
@@ -119,17 +118,24 @@ jobs:
             --v2-signing-enabled false \
             --v3-signing-enabled true \
             --v4-signing-enabled false \
-            "$release_apk"
-          $HOME/android-sdk/build-tools/33.0.2/zipalign -v -p 4 "$release_apk" "${{ github.workspace }}/app/build/outputs/apk/release/GMS-Phixit-Release.apk"
+            "$SIGNED_APK_PATH"
+
+          mv "$SIGNED_APK_PATH" ${{ env.main_project_module }}/build/outputs/apk/release/${{ env.playstore_name }}-release.apk
+      
+      - name: Upload APK Debug
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - APK Debug
+          path: ${{ env.main_project_module }}/build/outputs/apk/debug/${{ env.playstore_name }}-debug.apk
 
       - name: Upload Signed APK Release
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - APK Release
-          path: ${{ github.workspace }}/app/build/outputs/apk/release/GMS-Phixit-Release.apk
+          path: ${{ env.main_project_module }}/build/outputs/apk/release/${{ env.playstore_name }}-release.apk
 
       - name: Upload Signed AAB Release
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - AAB Release
-          path: ${{ github.workspace }}/app/build/outputs/bundle/release/app-release.aab
+          path: ${{ env.main_project_module }}/build/outputs/bundle/release/${{ env.main_project_module }}-release.aab
