@@ -1,4 +1,4 @@
-name: CI Build
+name: APK & AAB CI Build
 env:
   main_project_module: app
   playstore_name: GMSPhixit
@@ -62,7 +62,7 @@ jobs:
         run: |
           echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
           echo "PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
-          
+
       - name: Set SDK directory in local.properties
         run: echo "sdk.dir=$HOME/android-sdk" > local.properties
 
@@ -75,55 +75,52 @@ jobs:
           echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
           echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
           echo "KEYSTORE_PASS=${{ secrets.KEYSTORE_PASS }}" >> $GITHUB_ENV
+      
+      - name: Build APKs and AAB
+        run: ./gradlew assembleDebug assembleRelease ${{ env.main_project_module }}:bundleRelease
 
-      - name: Build project
-        run: ./gradlew build
-
-      - name: Build APK Debug
-        run: ./gradlew assembleDebug
-
-      - name: Build APK Release
-        run: ./gradlew assembleRelease
-
-      - name: Build AAB Release
-        run: ./gradlew ${{ env.main_project_module }}:bundleRelease
-
-      - name: Sign Debug APK 
+      - name: Sign Debug APK
         run: |
           chmod -R 0755 $HOME/android-sdk
+          DEBUG_APK_PATH=$(find ${{ env.main_project_module }}/build/outputs/apk/debug -name "*-debug.apk" -print -quit)
           $HOME/android-sdk/build-tools/33.0.2/apksigner sign \
-          --ks ${{ github.workspace }}/keystore.jks \
-          --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
-          --key-pass pass:${{ secrets.KEYSTORE_PASS }} \
-          --v1-signing-enabled true \
-          --v2-signing-enabled false \
-          --v3-signing-enabled true \
-          --v4-signing-enabled false \
-          ${{ github.workspace }}/${{ env.main_project_module }}/build/outputs/apk/debug/app-debug.apk
+            --ks ${{ github.workspace }}/keystore.jks \
+            --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
+            --key-pass pass:${{ secrets.KEYSTORE_PASS }} \
+            --v1-signing-enabled true \
+            --v2-signing-enabled false \
+            --v3-signing-enabled true \
+            --v4-signing-enabled false \
+            "$DEBUG_APK_PATH"
+          cp "$DEBUG_APK_PATH" ${{ env.main_project_module }}/build/outputs/apk/debug/${{ env.playstore_name }}-debug.apk
 
       - name: Sign Release APK
         run: |
+          RELEASE_APK_UNSIGNED_PATH=$(find ${{ env.main_project_module }}/build/outputs/apk/release -name "*-release-unsigned.apk" -print -quit)
           $HOME/android-sdk/build-tools/33.0.2/apksigner sign \
-          --ks ${{ github.workspace }}/keystore.jks \
-          --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
-          --key-pass pass:${{ secrets.KEYSTORE_PASS }} \
-          --v1-signing-enabled true \
-          --v2-signing-enabled false \
-          --v3-signing-enabled true \
-          --v4-signing-enabled false \
-          ${{ github.workspace }}/${{ env.main_project_module }}/build/outputs/apk/release/app-release-unsigned.apk
+            --ks ${{ github.workspace }}/keystore.jks \
+            --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
+            --key-pass pass:${{ secrets.KEYSTORE_PASS }} \
+            --v1-signing-enabled true \
+            --v2-signing-enabled false \
+            --v3-signing-enabled true \
+            --v4-signing-enabled false \
+            "$RELEASE_APK_UNSIGNED_PATH"
+          cp "$RELEASE_APK_UNSIGNED_PATH" ${{ env.main_project_module }}/build/outputs/apk/release/${{ env.playstore_name }}-release.apk
 
       - name: Zipalign Signed Release APK
         run: |
+          RELEASE_APK_PATH=$(find ${{ env.main_project_module }}/build/outputs/apk/release -name "*-release.apk" -print -quit)
           zipalign -v -p 4 \
-            ${{ env.main_project_module }}/build/outputs/apk/release/app-release-unsigned.apk \
-            ${{ env.main_project_module }}/build/outputs/apk/release/app-release.apk
-
+            "$RELEASE_APK_PATH" \
+            ${{ env.main_project_module }}/build/outputs/apk/release/${{ env.playstore_name }}-release.apk
+      
       - name: Verify Signed Release APK
-        run: $HOME/android-sdk/build-tools/33.0.2/apksigner verify --verbose ${{ github.workspace }}/${{ env.main_project_module }}/build/outputs/apk/release/app-release.apk
+        run: $HOME/android-sdk/build-tools/33.0.2/apksigner verify --verbose ${{ github.workspace }}/${{ env.main_project_module }}/build/outputs/apk/release/${{ env.playstore_name }}-release.apk
 
       - name: Sign Release AAB with v1 and v3 only
         run: |
+          RELEASE_AAB_PATH=$(find ${{ env.main_project_module }}/build/outputs/bundle/release -name "*-release.aab" -print -quit)
           $HOME/android-sdk/build-tools/33.0.2/apksigner sign \
           --ks ${{ github.workspace }}/keystore.jks \
           --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
@@ -132,25 +129,27 @@ jobs:
           --v2-signing-enabled false \
           --v3-signing-enabled true \
           --v4-signing-enabled false \
-          ${{ github.workspace }}/${{ env.main_project_module }}/build/outputs/bundle/release/app-release.aab
+          "$RELEASE_AAB_PATH"
 
       - name: Verify Signed Release AAB
-        run: $HOME/android-sdk/build-tools/33.0.2/apksigner verify --verbose ${{ github.workspace }}/${{ env.main_project_module }}/build/outputs/bundle/release/app-release.aab
+        run: |
+          RELEASE_AAB_PATH=$(find ${{ env.main_project_module }}/build/outputs/bundle/release -name "*-release.aab" -print -quit)
+          $HOME/android-sdk/build-tools/33.0.2/apksigner verify --verbose "$RELEASE_AAB_PATH"
 
       - name: Upload APK Debug
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - APK Debug
-          path: ${{ env.main_project_module }}/build/outputs/apk/debug/app-debug.apk
+          path: ${{ env.main_project_module }}/build/outputs/apk/debug/${{ env.playstore_name }}-debug.apk
 
       - name: Upload Signed APK Release
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - APK Release
-          path: ${{ env.main_project_module }}/build/outputs/apk/release/app-release.apk
+          path: ${{ env.main_project_module }}/build/outputs/apk/release/${{ env.playstore_name }}-release.apk
 
       - name: Upload Signed AAB Release
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.date_today }} - ${{ env.playstore_name }} - ${{ env.repository_name }} - AAB Release
-          path: ${{ env.main_project_module }}/build/outputs/bundle/release/app-release.aab
+          path: ${{ env.main_project_module }}/build/outputs/bundle/release/${{ env.main_project_module }}-release.aab
