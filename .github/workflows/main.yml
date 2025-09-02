@@ -25,10 +25,16 @@ jobs:
 
       - name: Set repository name as env variable
         run: echo "repository_name=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}')" >> $GITHUB_ENV
-     
+
+      # ✅ Decode google-services.json
       - name: Decode google-services.json from secret
-        run:  |
+        run: |
           echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > ${{ env.main_project_module }}/google-services.json
+
+      # ✅ Decode Keystore
+      - name: Decode JKS keystore
+        run: |
+          echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > release-key.jks
 
       - name: Set Up JDK
         uses: actions/setup-java@v4
@@ -42,26 +48,42 @@ jobs:
 
       - name: Ensure Gradle wrapper is available
         run: ./gradlew --version
-  
 
       - name: Change wrapper permissions
         run: chmod +x gradlew
 
+      # ✅ Configure Gradle Signing via properties
+      - name: Configure Signing Properties
+        run: |
+          echo "MYAPP_UPLOAD_STORE_FILE=release-key.jks" >> gradle.properties
+          echo "MYAPP_UPLOAD_KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> gradle.properties
+          echo "MYAPP_UPLOAD_STORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> gradle.properties
+          echo "MYAPP_UPLOAD_KEY_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> gradle.properties
+
+      # Run tests
       - name: Run gradle tests
         run: ./gradlew test
 
-      - name: Build gradle project
-        run: ./gradlew build
+      # Build signed release APK and AAB
+      - name: Build signed release APK
+        run: ./gradlew assembleRelease \
+          -Pandroid.injected.signing.store.file=release-key.jks \
+          -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
+          -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
+          -Pandroid.injected.signing.key.password=${{ secrets.KEYSTORE_PASSWORD }}
 
+      - name: Build signed AAB
+        run: ./gradlew bundleRelease \
+          -Pandroid.injected.signing.store.file=release-key.jks \
+          -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
+          -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
+          -Pandroid.injected.signing.key.password=${{ secrets.KEYSTORE_PASSWORD }}
+
+      # Debug APK (unsigned)
       - name: Build apk debug project - ${{ env.main_project_module }}
         run: ./gradlew assembleDebug
 
-      - name: Build app with analytics disabled
-        run: ./gradlew assembleRelease -PdisableAnalytics=true
-
-      - name: Build app bundle release (AAB) - ${{ env.main_project_module }}
-        run: ./gradlew ${{ env.main_project_module }}:bundleRelease
-
+      # ✅ Upload artifacts
       - name: Upload APK Debug
         uses: actions/upload-artifact@v4
         with:
