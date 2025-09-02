@@ -41,7 +41,7 @@ jobs:
             gradle-
 
       - name: Run gradle wrapper
-        run: ./gradlew wrapper
+        run: gradle wrapper
 
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
