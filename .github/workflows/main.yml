@@ -52,15 +52,13 @@ jobs:
           restore-keys: gradle-
 
       - name: Build app
-        run: ./gradlew clean build \
-              -PdisableAnalytics=true \
-              -x test
+        run: ./gradlew build -PdisableAnalytics=true -x test
 
       - name: Build APK Debug
-        run: ./gradlew assembleDebug -x test
+        run: ./gradlew assembleDebug -PdisableAnalytics=true
 
       - name: Build APK Release
-        run: ./gradlew assembleRelease -x test
+        run: ./gradlew assembleRelease -PdisableAnalytics=true
 
       - name: Build AAB Release
         run: ./gradlew ${{ env.main_project_module }}:bundleRelease -x test
